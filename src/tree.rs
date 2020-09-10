@@ -30,7 +30,7 @@ impl<T: PartialOrd + Clone> RedBlackTree<T> {
     /// ```
     /// use redblack::tree::RedBlackTree;
     /// let tree: RedBlackTree<u32> = RedBlackTree::new();
-    /// assert_eq!(0, tree.get_size());
+    /// assert_eq!(0, tree.len());
     /// ```
     pub fn new() -> Self {
         RedBlackTree {
@@ -46,7 +46,7 @@ impl<T: PartialOrd + Clone> RedBlackTree<T> {
     /// let mut tree: RedBlackTree<u32> = RedBlackTree::new();
     /// tree.insert(1);
     /// tree.insert(2);
-    /// assert_eq!(2, tree.get_size());
+    /// assert_eq!(2, tree.len());
     /// ```
     ///
     pub fn insert(&mut self, val: T) {
@@ -138,7 +138,7 @@ impl<T: PartialOrd + Clone> RedBlackTree<T> {
     }
 
     pub fn clear(&mut self) {
-        self.root = None;
+        self.root.take();
         self.size = 0;
     }
 
@@ -150,17 +150,30 @@ impl<T: PartialOrd + Clone> RedBlackTree<T> {
         unimplemented!("not yet")
     }
 
-    pub fn get_size(&self) -> u64 {
+    pub fn len(&self) -> u64 {
         self.size
     }
 }
 
-impl<T: Clone + PartialOrd> Iterator for RedBlackTree<T> {
-    type Item = T;
+fn from_recursive<T: PartialOrd + Clone>(node: TreeNode<T>, res: &mut Vec<T>) {
+    if let Some(node_ptr) = node {
+        from_recursive(node_ptr.clone().borrow().left.clone(), res);
+        res.push(node_ptr.clone().borrow().value.clone());
+        from_recursive(node_ptr.clone().borrow().right.clone(), res);
+    }
+}
 
-    // natural order, a.k.a, from small to large
-    fn next(&mut self) -> Option<Self::Item> {
-        None
+impl<T: PartialOrd + Clone> From<RedBlackTree<T>> for Vec<T> {
+    fn from(tree: RedBlackTree<T>) -> Self {
+        let mut res = Vec::with_capacity(tree.len() as usize);
+        from_recursive(tree.root, &mut res);
+        res
+    }
+}
+
+impl<T: PartialOrd + Clone> Default for RedBlackTree<T> {
+    fn default() -> Self {
+        RedBlackTree::new()
     }
 }
 
@@ -208,7 +221,7 @@ mod tests {
     pub fn test_create_tree() {
         let tree: RedBlackTree<u32> = RedBlackTree::new();
         println!("{:?}", tree);
-        assert_eq!(0, tree.get_size());
+        assert_eq!(0, tree.len());
     }
 
     #[test]
@@ -219,9 +232,34 @@ mod tests {
         tree.insert(2);
         println!("{:?}", tree);
         tree.insert(23);
-        assert_eq!(3, tree.get_size());
+        assert_eq!(3, tree.len());
         println!("{:?}", tree);
         tree.insert(45);
         println!("{:?}", tree);
+    }
+
+    #[test]
+    pub fn test_into() {
+        let mut tree: RedBlackTree<u32> = RedBlackTree::new();
+        tree.insert(1);
+        tree.insert(2);
+        tree.insert(23);
+        tree.insert(0);
+        tree.insert(15);
+        tree.insert(100);
+        let res: Vec<u32> = tree.into();
+        assert_eq!(res, vec![0, 1, 2, 15, 23, 100]);
+    }
+
+    #[test]
+    pub fn test_contains() {
+        let mut tree: RedBlackTree<u32> = RedBlackTree::new();
+        tree.insert(1);
+        tree.insert(2);
+        tree.insert(23);
+        tree.insert(0);
+        tree.insert(15);
+        tree.insert(100);
+        assert_eq!(true, tree.contains(23));
     }
 }
